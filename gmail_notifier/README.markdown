@@ -1,6 +1,6 @@
 ### Description
-`gmail_notifier` is a small daemon that will poll gmail every 10 minutes for unread messages,
-and display a list of all senders in a [GROWL](http://http://growl.info/) notification.
+_gmail_notifier_ is a small daemon that will poll gmail every 10 minutes for unread messages,
+and display a list of all senders in a [GROWL](http://growl.info/) notification.
 
 ### Usage
 Start the gmail_notifier daemon with:
@@ -13,4 +13,4 @@ And stop it with:
 - [ruby-gmail](https://github.com/dcparker/ruby-gmail): GMail manipulation in ruby
 
 ### Author
-Aurélien Vallée – <vallee.aurelien@gmail.com>
+- Aurélien Vallée – <vallee.aurelien@gmail.com>
