@@ -8,6 +8,7 @@
 
 require 'ruby-growl'
 require 'gmail'
+require 'json'
 
 growl = Growl.new "localhost", "ruby-growl", ["growl-gmail-notifier"]
 gmail_config = JSON.parse( IO.read("/Users/newbiz/.gmail") )
