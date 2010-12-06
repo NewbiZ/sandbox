@@ -92,8 +92,8 @@ SET( #{options[:project]}_MINOR_VERSION 0 )
 SET( #{options[:project]}_PATCH_LEVEL   1 )
 
 ########################## Modules configuration ##############################
-OPTION( BUILD_DOC    "Build the doxygen documentation" ON )
-OPTION( BUILD_TESTS  "Build the unit tests"            ON )
+OPTION( BUILD_DOC    "Build the doxygen documentation" OFF )
+OPTION( BUILD_TESTS  "Build the unit tests"            OFF )
 
 MESSAGE( STATUS "Building documentation:   " ${BUILD_DOC}    )
 MESSAGE( STATUS "Building tests:           " ${BUILD_TESTS}  )
