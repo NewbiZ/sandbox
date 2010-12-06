@@ -1,0 +1,30 @@
+# Max2Mtl Version 4.0 Mar 10th, 2001
+#
+newmtl scene_trunk
+Ka  0.6 0.6 0.6
+Kd  0.6 0.6 0.6
+Ks  0.9 0.9 0.9
+d  1.0
+Ns  0.0
+illum 2
+map_Kd scene_trunk.tga
+#
+newmtl scene_leaf
+Ka  0.6 0.6 0.6
+Kd  0.6 0.6 0.6
+Ks  0.9 0.9 0.9
+d  1.0
+Ns  0.0
+illum 2
+map_Kd -s 3.0 3.0 1.0 scene_leaf.tga
+#
+newmtl scene_grass
+Ka  0.6 0.6 0.6
+Kd  0.6 0.6 0.6
+Ks  0.9 0.9 0.9
+d  1.0
+Ns  0.0
+illum 2
+map_Kd -s 20.0 20.0 1.0 scene_grass.tga
+#
+# EOF

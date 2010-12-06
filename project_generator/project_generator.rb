@@ -191,7 +191,7 @@ CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
 BRIEF_MEMBER_DESC      = YES
 REPEAT_BRIEF           = YES
-ALWAYS_DETAILED_SEC    = NO
+ALWAYS_DETAILED_SEC    = YES
 INLINE_INHERITED_MEMB  = YES
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = 
@@ -212,7 +212,7 @@ EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
 EXTRACT_LOCAL_CLASSES  = YES
 EXTRACT_LOCAL_METHODS  = NO
-EXTRACT_ANON_NSPACES   = YES
+EXTRACT_ANON_NSPACES   = NO
 HIDE_UNDOC_MEMBERS     = NO
 HIDE_UNDOC_CLASSES     = NO
 HIDE_FRIEND_COMPOUNDS  = NO
@@ -407,7 +407,7 @@ create_file      "#{options[:project]}/CMakeLists.txt",                         
 create_file      "#{options[:project]}/Doxyfile.in",                                     options[:noop], options[:verbose], doxyfile_in
 create_file      "#{options[:project]}/README.markdown",                                 options[:noop], options[:verbose], readme_source
 create_file      "#{options[:project]}/AUTHORS.markdown",                                options[:noop], options[:verbose], authors_source
-create_file      "#{options[:project]}/INSTALL.markdon",                                 options[:noop], options[:verbose], install_source
+create_file      "#{options[:project]}/INSTALL.markdown",                                options[:noop], options[:verbose], install_source
 create_directory "#{options[:project]}/src",                                             options[:noop], options[:verbose]
 create_file      "#{options[:project]}/src/main.cpp",                                    options[:noop], options[:verbose], main_source
 create_directory "#{options[:project]}/inc",                                             options[:noop], options[:verbose]
