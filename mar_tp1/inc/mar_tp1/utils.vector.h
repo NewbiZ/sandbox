@@ -57,7 +57,7 @@ namespace mar
   float dot( const PointT& v1, const PointT& v2 );
   
   /**
-   * vcross (outter) product
+   * \brief cross (outter) product
    */
   inline Vector<3> cross( const Vector<3>& v1, const Vector<3>& v2 );
   
