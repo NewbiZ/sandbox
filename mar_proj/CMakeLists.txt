@@ -80,7 +80,7 @@ FILE( COPY ${PROJ_DATA_PATH} DESTINATION ${PROJ_OUT_PATH} )
 #ADD_LIBRARY( mar_proj SHARED ${Sources} )
 ADD_EXECUTABLE( mar_proj ${PROJ_SOURCES} )
 
-TARGET_LINK_LIBRARIES( mar_proj ${PROJ_LIBRARIES} )
+TARGET_LINK_LIBRARIES( mar_proj ${PROJ_LIBRARIES} -lcvars )
 
 ############################## Documentation ##################################
 IF ( BUILD_DOC )

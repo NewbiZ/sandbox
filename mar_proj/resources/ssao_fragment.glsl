@@ -51,80 +51,78 @@ void main()
   gl_FragColor.rgb  = vec3(occlusion);
   gl_FragColor.a    = 1.;
 }*/
+
+
+
 uniform sampler2D depthMap;
-uniform sampler2D normalMap;
 
-const float width  = 1024.;
-const float height =  768.;
+uniform float width;
+uniform float height;
 
-const float znear =  8.;
-const float zfar  = 60.;
+uniform float radius;
+uniform float precision;
+uniform float nbRays;
 
-const float radius    = 0.01;
-const float precision = 1.;
+const float znear =  8.0;
+const float zfar  = 60.0;
+
+const float pi = 3.1415;
 
 float linearDepth( vec2 uv )
 {
-  /* TODO: linearize z */
   float z = texture2D(depthMap, uv).x;
   return z;
-}
-
-vec3 viewspaceNormal2( vec2 uv )
-{
-  return (texture2D(normalMap, uv).rgb)*2.-vec3(1.,1.,1.); /* Unpack normals */
+  /*return (2.0 * znear) / (znear + zfar - z * (zfar - znear));*/
 }
 
 vec3 viewspaceNormal( vec2 uv )
 {
-  /* TODO: use sobel filter here */
   float c   = linearDepth(uv);
   float xm1 = linearDepth(uv-dFdx(uv));
   float xp1 = linearDepth(uv+dFdx(uv));
   float ym1 = linearDepth(uv-dFdy(uv));
   float yp1 = linearDepth(uv+dFdy(uv));
-  
+
   vec3 v1 = vec3( 1., 0., (xm1-xp1)*400. );
   vec3 v2 = vec3( 0., 1., (ym1-yp1)*400. );
-  
+
   return normalize(cross(v1,v2));
 }
 
 vec3 coords( vec2 uv )
 {
-  return vec3( uv.s, uv.t, linearDepth(uv) );
+  return vec3( uv.s, uv.t, 1.-linearDepth(uv) );
 }
 
-bool in_hemisphere( vec3 center, float radius, vec3 point )
+float horizonAt( vec2 uv, float angle )
 {
-  return distance(center,point)<=radius; /* Is in the surround sphere */
-         /* dot(point,viewspaceNormal(vec2(center.s,center.t)))<0.; /* Is in the normal-oriented hemisphere */
+  vec2 i        = uv;
+  float horizon = 0.0;
+  
+  angle = clamp(angle, 0., 2.*pi );
+
+  while ( distance(i,uv) <= radius )
+  { 
+    float c = dot( viewspaceNormal(uv), normalize(coords(i)-coords(uv)) );
+    if ( c>0. && c>horizon && (distance(coords(uv),coords(i))<=radius) )
+      horizon = c;
+    i += precision*(cos(angle)*dFdx(i) + sin(angle)*dFdy(i));
+  }
+
+  return horizon;
 }
 
 float accessibility( vec2 uv )
 {
-  vec2 current = uv;
-  vec2 i;
-  float horizon;
-  float totalHorizon = 0.;
-  
-  /* Marching in +x */
-  i = current+dFdx(i);
-  horizon = 0.;
-  while ( distance(current,i)<=radius )
-  {
-    float c = dot(viewspaceNormal(current), normalize(coords(i)-coords(current)) );
-    if ( c>0. && c>horizon && (distance(coords(current),coords(i))<=radius) )
-      horizon = c;
-    i += precision*dFdx(i);
-  }
-  totalHorizon += horizon;
+  float totalHorizon = 0.0;
+  float angle = 0.0;
+  for ( angle=0.; angle<2.0*pi; angle+=(2.0*pi)/nbRays )
+    totalHorizon += horizonAt( uv, angle );
 
-  return 1.-totalHorizon;
+  return 1. - totalHorizon/nbRays;
 }
 
 void main()
 {
-  float acc = accessibility(gl_TexCoord[0].st );
-  gl_FragColor = vec4( acc, acc, acc, 1. );
+  gl_FragColor.rgb = vec3( accessibility(gl_TexCoord[0].st)*accessibility(gl_TexCoord[0].st) );
 }

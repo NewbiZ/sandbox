@@ -27,6 +27,18 @@ namespace mar
     return glGetUniformLocation( program_, uniform.c_str() );
   }
   
+  void Shader::setUniform1i( const std::string& uniformName, int value ) const
+  {
+    GLuint location = uniformLocation(uniformName);
+    glUniform1i( location, value );
+  }
+  
+  void Shader::setUniform1f( const std::string& uniformName, float value ) const
+  {
+    GLuint location = uniformLocation(uniformName);
+    glUniform1f( location, value );
+  }
+  
   void Shader::cleanup()
   {
     if ( !program_ )

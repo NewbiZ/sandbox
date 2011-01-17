@@ -2,10 +2,18 @@
 
 #include <GL/glut.h>
 #include <iostream>
+#include "mar_proj/utils.font.h"
 
 namespace mar
 {
   Scene::Scene()
+    :  ssaoWidth_    ( CVarUtils::CreateCVar<float>("ssao.width",      800.  , "Width of the depth buffer texture"      ) ),
+       ssaoHeight_   ( CVarUtils::CreateCVar<float>("ssao.height",     600.  , "Height of the depth buffer texture"     ) ),
+       ssaoRadius_   ( CVarUtils::CreateCVar<float>("ssao.radius",       0.01, "Radius of the horizon marching"         ) ),
+       ssaoPrecision_( CVarUtils::CreateCVar<float>("ssao.precision",    2.  , "Precision (step) while marching horizon") ),
+       ssaoNbRays_   ( CVarUtils::CreateCVar<float>("ssao.nb_rays",      8.  , "Number of horizon rays to march"        ) ),
+       blendApply_   ( CVarUtils::CreateCVar<int>  ("blend.ambient",     1   , "1 to apply ambient while blending"      ) ),
+       blurApply_    ( CVarUtils::CreateCVar<int>  ("blend.blur",        1   , "1 to blur occlusion while blending"     ) )
   {
   }
   
@@ -13,29 +21,35 @@ namespace mar
   {
   }
   
-  void Scene::setup()
+  void Scene::setup( unsigned int width, unsigned int height )
   {
+    ssaoWidth_  = width;
+    ssaoHeight_ = height;
+    
     setup_opengl();
     setup_models();
     setup_view();
     
-    shaderNormal_.load( "resources/normal_vertex.glsl", "resources/normal_fragment.glsl" );
-    shaderNormal_.disable();
+    shaderPPP_.load( "resources/ppp_vertex.glsl", "resources/ppp_fragment.glsl" );
+    shaderPPP_.disable();
     
     shaderSSAO_.load( "resources/ssao_vertex.glsl", "resources/ssao_fragment.glsl" );
     shaderSSAO_.disable();
     
-    framebuffer1_.setup();
-    framebuffer2_.setup();
+    shaderBlend_.load( "resources/blend_vertex.glsl", "resources/blend_fragment.glsl" );
+    shaderBlend_.disable();
+    
+    framebuffer1_.setup(ssaoWidth_, ssaoHeight_);
+    framebuffer2_.setup(ssaoWidth_, ssaoHeight_);
+    framebuffer3_.setup(ssaoWidth_, ssaoHeight_);
   }
   
   void Scene::setup_opengl()
   {
     // Viewport & projections
-    glViewport( 0, 0, 1024, 768 );
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
-    gluPerspective( 60, 1024./768., 1, 10. );
+    gluPerspective( 60, ssaoWidth_/ssaoHeight_, 1, 10. );
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
     
@@ -80,9 +94,29 @@ namespace mar
     distance_ += 0.5;
   }
   
+  void Scene::toggle_console()
+  {
+    console_.ToggleConsole();
+  }
+  
+  bool Scene::console_is_open() const
+  {
+    return console_.IsOpen();
+  }
+  
+  void Scene::send_keyboard( int key )
+  {
+    console_.KeyboardFunc(key);
+  }
+  
+  void Scene::send_special( int key )
+  {
+    console_.SpecialFunc(key);
+  }
+  
   void Scene::render() const
   {
-    static float light_position[] = { 50.0, 50.0, 50.0, 1.0 };
+    static float light_position[] = { 20.0, 100.0, 20.0, 1.0 };
 
     static float light_ambient [] = { 1.0, 1.0, 1.0, 1.0 };
     static float light_diffuse [] = { 1.0, 1.0, 1.0, 1.0 };
@@ -101,7 +135,7 @@ namespace mar
     //========================================================================== PASS 1 : GET Z BUFFER TO TEXTURE
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
-    gluPerspective( 60, 1024./768., 8., 60. );
+    gluPerspective( 60, ssaoWidth_/ssaoHeight_, 8., 60. );
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
     
@@ -126,30 +160,29 @@ namespace mar
     
     glRotatef( 80+rotation_, 0, 1, 0 );
     
-    shaderNormal_.enable();
-      glPushMatrix();
-      glScalef( 50, 50, 50 );
-      model_.render();
-      glPopMatrix();
-      
-      glBegin( GL_QUADS );
-        glNormal3f  ( 0, 1 ,0 );
-        glVertex3f( -10, 2.7, -10 );
-        glVertex3f(  10, 2.7, -10 );
-        glVertex3f(  10, 2.7,  10 );
-        glVertex3f( -10, 2.7,  10 );
-      glEnd();
-    shaderNormal_.disable();
+    shaderPPP_.enable();
+    glPushMatrix();
+    glScalef( 50, 50, 50 );
+    model_.render();
+    glPopMatrix();
+    
+    glBegin( GL_QUADS );
+      glNormal3f  ( 0, 1 ,0 );
+      glVertex3f( -10, 2.7, -10 );
+      glVertex3f(  10, 2.7, -10 );
+      glVertex3f(  10, 2.7,  10 );
+      glVertex3f( -10, 2.7,  10 );
+    glEnd();
+    shaderPPP_.disable();
     
     framebuffer1_.disable();
     
     //========================================================================== PASS 2 : COMPUTE SCREEN SPACE OCCLUSION
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
-    glOrtho( 0, 1024, 0, 768, -5, 5);
+    glOrtho( 0, ssaoWidth_, 0, ssaoHeight_, -5, 5);
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
-    
     framebuffer2_.enable();
     
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -158,21 +191,20 @@ namespace mar
     glEnable( GL_TEXTURE_2D );
     glBindTexture( GL_TEXTURE_2D, framebuffer1_.depth_buffer() );
     
-    glActiveTexture(GL_TEXTURE1);
-    glEnable( GL_TEXTURE_2D );
-    glBindTexture( GL_TEXTURE_2D, framebuffer1_.color_buffer() );
-    
     shaderSSAO_.enable();
-    GLuint depthMap = shaderSSAO_.uniformLocation( "depthMap" );
-    glUniform1i( depthMap, 0 );
-    GLuint normalMap = shaderSSAO_.uniformLocation( "normalMap" );
-    glUniform1i( normalMap, 1 );
+    
+    shaderSSAO_.setUniform1i( "depthMap",  0              );
+    shaderSSAO_.setUniform1f( "width",     ssaoWidth_     );
+    shaderSSAO_.setUniform1f( "height",    ssaoHeight_    );
+    shaderSSAO_.setUniform1f( "radius",    ssaoRadius_    );
+    shaderSSAO_.setUniform1f( "precision", ssaoPrecision_ );
+    shaderSSAO_.setUniform1f( "nbRays",    ssaoNbRays_    );
     
     glBegin( GL_QUADS );
       glTexCoord2f(0,0); glVertex3f(    0,   0, 0 );
-      glTexCoord2f(1,0); glVertex3f( 1024,   0, 0 );
-      glTexCoord2f(1,1); glVertex3f( 1024, 768, 0 );
-      glTexCoord2f(0,1); glVertex3f(    0, 768, 0 );
+      glTexCoord2f(1,0); glVertex3f( ssaoWidth_,   0, 0 );
+      glTexCoord2f(1,1); glVertex3f( ssaoWidth_, ssaoHeight_, 0 );
+      glTexCoord2f(0,1); glVertex3f(    0, ssaoHeight_, 0 );
     glEnd();
     
     shaderSSAO_.disable();
@@ -181,14 +213,54 @@ namespace mar
     
     glActiveTexture(GL_TEXTURE0);
     
-    //========================================================================== DIPLAY
+    //========================================================================== PASS 3 : BLUR OCCLUSION MAP
+    glMatrixMode( GL_PROJECTION );
+    glLoadIdentity();
+    glOrtho( 0, ssaoWidth_, 0, ssaoHeight_, -5, 5);
+    glMatrixMode( GL_MODELVIEW );
+    glLoadIdentity();
+    
+    framebuffer3_.enable();
+    
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    
+    glActiveTexture(GL_TEXTURE0);
+    glEnable( GL_TEXTURE_2D );
+    glBindTexture( GL_TEXTURE_2D, framebuffer1_.color_buffer() );
+    
+    glActiveTexture(GL_TEXTURE1);
+    glEnable( GL_TEXTURE_2D );
+    glBindTexture( GL_TEXTURE_2D, framebuffer2_.color_buffer() );
+    
+    shaderBlend_.enable();
+    
+    shaderBlend_.setUniform1i( "apply_ambient",  blendApply_ );
+    shaderBlend_.setUniform1i( "apply_blur",     blurApply_  );
+    shaderBlend_.setUniform1i( "ppp_map",        0 );
+    shaderBlend_.setUniform1i( "ssao_map",       1 );
+    
+    glBegin( GL_QUADS );
+      glTexCoord2f(0,0); glVertex3f(    0,   0, 0 );
+      glTexCoord2f(1,0); glVertex3f( ssaoWidth_,   0, 0 );
+      glTexCoord2f(1,1); glVertex3f( ssaoWidth_, ssaoHeight_, 0 );
+      glTexCoord2f(0,1); glVertex3f(    0, ssaoHeight_, 0 );
+    glEnd();
+    
+    shaderBlend_.disable();
+    
+    framebuffer3_.disable();
+    
+    glActiveTexture(GL_TEXTURE0);
+    
+    //========================================================================== DISPLAY
     glDisable( GL_LIGHTING );
+    glDisable( GL_TEXTURE_2D );
     
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
-    glOrtho( 0, 1024, 0, 768, 0, 1);
+    glOrtho( 0, ssaoWidth_, 0, ssaoHeight_, -1, 1);
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
     
@@ -196,34 +268,46 @@ namespace mar
     
     glBindTexture( GL_TEXTURE_2D, framebuffer1_.depth_buffer() );
     glBegin( GL_QUADS );
-      glTexCoord2f(0,0); glVertex3f(       0,  768./2, 0 );
-      glTexCoord2f(1,0); glVertex3f( 1024./2,  768./2, 0 );
-      glTexCoord2f(1,1); glVertex3f( 1024./2,     768, 0 );
-      glTexCoord2f(0,1); glVertex3f(       0,     768, 0 );
+      glTexCoord2f(0,0); glVertex3f(       0,  ssaoHeight_/2, 0 );
+      glTexCoord2f(1,0); glVertex3f( ssaoWidth_/2,  ssaoHeight_/2, 0 );
+      glTexCoord2f(1,1); glVertex3f( ssaoWidth_/2,     ssaoHeight_, 0 );
+      glTexCoord2f(0,1); glVertex3f(       0,     ssaoHeight_, 0 );
     glEnd();
     
     glBindTexture( GL_TEXTURE_2D, framebuffer1_.color_buffer() );
     glBegin( GL_QUADS );
-      glTexCoord2f(0,0); glVertex3f( 1024./2, 768./2, 0 );
-      glTexCoord2f(1,0); glVertex3f(    1024, 768./2, 0 );
-      glTexCoord2f(1,1); glVertex3f(    1024,    768, 0 );
-      glTexCoord2f(0,1); glVertex3f( 1024./2,    768, 0 );
-    glEnd();
-    
-    glBindTexture( GL_TEXTURE_2D, framebuffer2_.depth_buffer() );
-    glBegin( GL_QUADS );
-      glTexCoord2f(0,0); glVertex3f(       0,  0, 0 );
-      glTexCoord2f(1,0); glVertex3f( 1024./2,  0, 0 );
-      glTexCoord2f(1,1); glVertex3f( 1024./2,  768./2, 0 );
-      glTexCoord2f(0,1); glVertex3f(       0,  768./2, 0 );
+      glTexCoord2f(0,0); glVertex3f( ssaoWidth_/2, ssaoHeight_/2, 0 );
+      glTexCoord2f(1,0); glVertex3f(    ssaoWidth_, ssaoHeight_/2, 0 );
+      glTexCoord2f(1,1); glVertex3f(    ssaoWidth_,    ssaoHeight_, 0 );
+      glTexCoord2f(0,1); glVertex3f( ssaoWidth_/2,    ssaoHeight_, 0 );
     glEnd();
     
     glBindTexture( GL_TEXTURE_2D, framebuffer2_.color_buffer() );
     glBegin( GL_QUADS );
-      glTexCoord2f(0,0); glVertex3f( 1024./2, 0, 0 );
-      glTexCoord2f(1,0); glVertex3f(    1024, 0, 0 );
-      glTexCoord2f(1,1); glVertex3f(    1024, 768./2, 0 );
-      glTexCoord2f(0,1); glVertex3f( 1024./2, 768./2, 0 );
+      glTexCoord2f(0,0); glVertex3f(       0,       0, 0 );
+      glTexCoord2f(1,0); glVertex3f( ssaoWidth_/2,       0, 0 );
+      glTexCoord2f(1,1); glVertex3f( ssaoWidth_/2,  ssaoHeight_/2, 0 );
+      glTexCoord2f(0,1); glVertex3f(       0,  ssaoHeight_/2, 0 );
     glEnd();
+    
+    glBindTexture( GL_TEXTURE_2D, framebuffer3_.color_buffer() );
+    glBegin( GL_QUADS );
+      glTexCoord2f(0,0); glVertex3f( ssaoWidth_/2,       0, 0 );
+      glTexCoord2f(1,0); glVertex3f(    ssaoWidth_,       0, 0 );
+      glTexCoord2f(1,1); glVertex3f(    ssaoWidth_,  ssaoHeight_/2, 0 );
+      glTexCoord2f(0,1); glVertex3f( ssaoWidth_/2,  ssaoHeight_/2, 0 );
+    glEnd();
+    
+    glDisable( GL_TEXTURE_2D );
+    //glColor3f( 0, 0, 1 );
+    //render_text(  10, 400, "Pass 1: Depth buffer" );
+    //render_text( 550, 400, "Pass 1: Color buffer" );
+    //render_text(  10,  10, "Pass 2: Color buffer" );
+    //render_text( 550,  10, "Pass 3: Color buffer" );
+    
+    //==========================================================================
+    
+    console_.RenderConsole();
+    glColor4f(1.0,1.0,1.0,1.0);
   }
 }

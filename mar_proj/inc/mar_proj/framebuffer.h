@@ -13,7 +13,7 @@ namespace mar
     ~FrameBuffer();
   
   public:
-    void setup();
+    void setup( unsigned int width, unsigned int height );
     
   public:
     void enable () const;

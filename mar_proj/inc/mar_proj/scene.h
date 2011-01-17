@@ -4,6 +4,7 @@
 #include "mar_proj/model.h"
 #include "mar_proj/shader.h"
 #include "mar_proj/framebuffer.h"
+#include <GLConsole/GLConsole.h>
 
 namespace mar
 {
@@ -15,7 +16,13 @@ namespace mar
     ~Scene();
     
   public:
-    void setup();
+    void setup( unsigned int width, unsigned int height );
+    
+  public:
+    bool console_is_open() const;
+    void toggle_console ();
+    void send_keyboard  ( int key );
+    void send_special   ( int key );
     
   public:
     void turn_left ();
@@ -33,13 +40,27 @@ namespace mar
     void setup_view  ();
     
   private:
-    Model       model_;
-    float       rotation_;
-    float       distance_;
-    Shader      shaderNormal_;
-    Shader      shaderSSAO_;
-    FrameBuffer framebuffer1_;
-    FrameBuffer framebuffer2_;
+    Model             model_;
+    float             rotation_;
+    float             distance_;
+    Shader            shaderPPP_;
+    Shader            shaderSSAO_;
+    Shader            shaderBlend_;
+    FrameBuffer       framebuffer1_;
+    FrameBuffer       framebuffer2_;
+    FrameBuffer       framebuffer3_;
+    mutable GLConsole console_;
+    
+    // --- SSAO control
+    float& ssaoWidth_;
+    float& ssaoHeight_;
+    float& ssaoRadius_;
+    float& ssaoPrecision_;
+    float& ssaoNbRays_;
+    
+    // --- Blend control
+    int& blendApply_;
+    int& blurApply_;
   };
   
 } // namespace mar

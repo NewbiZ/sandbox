@@ -6,8 +6,8 @@
 
 #include "mar_proj/scene.h"
 
-static const unsigned int width  = 1024;
-static const unsigned int height = 768;
+static const unsigned int width  = 1920;
+static const unsigned int height = 1200;
 
 mar::Scene scene;
 
@@ -16,27 +16,38 @@ void keyboard_func( unsigned char key, int x, int y )
   switch (key)
   {
     case 27: // ESC
-      exit( EXIT_SUCCESS );
+      scene.toggle_console();
+      break;
+    default:
+      if ( scene.console_is_open() )
+        scene.send_keyboard( key );
       break;
   }
 }
 
 void special_func( int key, int x, int y )
 {
-  switch (key)
+  if ( scene.console_is_open() )  // --- console opened
   {
-    case GLUT_KEY_LEFT:
-      scene.turn_left();
-      break;
-    case GLUT_KEY_RIGHT:
-      scene.turn_right();
-      break;
-    case GLUT_KEY_UP:
-      scene.move_forward();
-      break;
-    case GLUT_KEY_DOWN:
-      scene.move_backward();
-      break;
+    scene.send_special( key );
+  }
+  else                           // --- console closed
+  {
+    switch (key)
+    {
+      case GLUT_KEY_LEFT:
+        scene.turn_left();
+        break;
+      case GLUT_KEY_RIGHT:
+        scene.turn_right();
+        break;
+      case GLUT_KEY_UP:
+        scene.move_forward();
+        break;
+      case GLUT_KEY_DOWN:
+        scene.move_backward();
+        break;
+    }
   }
 }
 
@@ -54,6 +65,7 @@ void setup_glut()
   glutInitWindowSize( width, height );
   glutInitDisplayMode( GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH );
   glutCreateWindow( "mar_proj" );
+  glutFullScreen();
 }
 
 void setup_glew()
@@ -69,7 +81,7 @@ void setup_glew()
 
 void setup_scene()
 {
-  scene.setup();
+  scene.setup(width, height);
 }
 
 int main( int, char** )

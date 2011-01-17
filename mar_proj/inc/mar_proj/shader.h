@@ -18,6 +18,8 @@ namespace mar
     
   public:
     GLuint uniformLocation( const std::string& uniform ) const;
+    void   setUniform1i( const std::string& uniformName, int   value ) const;
+    void   setUniform1f( const std::string& uniformName, float value ) const;
     
   public:
     void enable () const;

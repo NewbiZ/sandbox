@@ -23,7 +23,7 @@ namespace mar
       glDeleteRenderbuffersEXT( 1, &depthBuffer_ );
   }
   
-  void FrameBuffer::setup()
+  void FrameBuffer::setup( unsigned int width, unsigned int height )
   {
     glGenFramebuffersEXT ( 1, &fbo_         );
     glGenTextures        ( 1, &depthBuffer_ );
@@ -31,6 +31,7 @@ namespace mar
     
     glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo_ );
     
+    //------- Color buffer
     glBindTexture( GL_TEXTURE_2D, colorBuffer_ );
     
     glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
@@ -38,10 +39,11 @@ namespace mar
     glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
     glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
     
-    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, 1024, 768, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0 );
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0 );
     
     glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, colorBuffer_, 0 );
-    //-------
+    
+    //------- Depth buffer
     glBindTexture( GL_TEXTURE_2D, depthBuffer_ );
     
     glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
@@ -49,10 +51,11 @@ namespace mar
     glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
     glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
     
-    glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, 1024, 768, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0 );
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0 );
     
     glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, depthBuffer_, 0 );
     
+    //------- Sanity check
     GLenum status = glCheckFramebufferStatusEXT( GL_FRAMEBUFFER_EXT );
     
     if ( status!=GL_FRAMEBUFFER_COMPLETE_EXT )
