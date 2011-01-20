@@ -4,25 +4,21 @@
 #include "mar_proj/model.h"
 #include "mar_proj/shader.h"
 #include "mar_proj/framebuffer.h"
-#include <GLConsole/GLConsole.h>
+#include "mar_proj/resource_manager.h"
 
 namespace mar
 {
-  
   class Scene
   {
   public:
-    explicit Scene();
+    explicit Scene( float& radius, float& precision, int& nbrays, int& power, int& blend, int& blur );
     ~Scene();
     
   public:
     void setup( unsigned int width, unsigned int height );
     
   public:
-    bool console_is_open() const;
-    void toggle_console ();
-    void send_keyboard  ( int key );
-    void send_special   ( int key );
+    void load_model( const std::string& filename );
     
   public:
     void turn_left ();
@@ -40,29 +36,26 @@ namespace mar
     void setup_view  ();
     
   private:
-    Model             model_;
-    float             rotation_;
-    float             distance_;
-    Shader            shaderPPP_;
-    Shader            shaderSSAO_;
-    Shader            shaderBlend_;
-    FrameBuffer       framebuffer1_;
-    FrameBuffer       framebuffer2_;
-    FrameBuffer       framebuffer3_;
-    mutable GLConsole console_;
+    Model       model_;
+    float       rotation_;
+    float       distance_;
+    Shader      shaderPPP_;
+    Shader      shaderSSAO_;
+    Shader      shaderBlend_;
+    FrameBuffer framebuffer1_;
+    FrameBuffer framebuffer2_;
+    FrameBuffer framebuffer3_;
     
-    // --- SSAO control
-    float& ssaoWidth_;
-    float& ssaoHeight_;
-    float& ssaoRadius_;
-    float& ssaoPrecision_;
-    float& ssaoNbRays_;
+    float width_;
+    float height_;
     
-    // --- Blend control
-    int& blendApply_;
-    int& blurApply_;
+    float& pass2Radius_;
+    float& pass2Precision_;
+    int&   pass2Nbrays_;
+    int&   pass2Power_;
+    int&   pass3Blend_;
+    int&   pass3Blur_;
   };
-  
 } // namespace mar
 
 #endif // MAR_SCENE_H

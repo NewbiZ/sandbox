@@ -62,11 +62,15 @@ uniform float height;
 uniform float radius;
 uniform float precision;
 uniform float nbRays;
+uniform float power;
 
 const float znear =  8.0;
 const float zfar  = 60.0;
 
 const float pi = 3.1415;
+
+float counter = 0.;
+int error = 0;
 
 float linearDepth( vec2 uv )
 {
@@ -98,17 +102,30 @@ float horizonAt( vec2 uv, float angle )
 {
   vec2 i        = uv;
   float horizon = 0.0;
-  
-  angle = clamp(angle, 0., 2.*pi );
-
+  counter = 0.;
   while ( distance(i,uv) <= radius )
   { 
     float c = dot( viewspaceNormal(uv), normalize(coords(i)-coords(uv)) );
     if ( c>0. && c>horizon && (distance(coords(uv),coords(i))<=radius) )
+    {
       horizon = c;
-    i += precision*(cos(angle)*dFdx(i) + sin(angle)*dFdy(i));
+    }
+    /* Sanity check in case of 0-displacement */
+    vec2 displacement = precision*(cos(angle)*dFdx(i) + sin(angle)*dFdy(i));
+    if ( distance(i,displacement)==0. || displacement==vec2(0.,0.) )
+    {
+      error = 1;
+      displacement = dFdx(i)+dFdy(i);
+    }
+    i += displacement;
+    counter++;
+    if ( counter>10. )
+    {
+      error = 1;
+      break;
+    }
   }
-
+  
   return horizon;
 }
 
@@ -116,13 +133,24 @@ float accessibility( vec2 uv )
 {
   float totalHorizon = 0.0;
   float angle = 0.0;
+  
   for ( angle=0.; angle<2.0*pi; angle+=(2.0*pi)/nbRays )
+  {
     totalHorizon += horizonAt( uv, angle );
-
+  }
+  
   return 1. - totalHorizon/nbRays;
 }
 
 void main()
 {
-  gl_FragColor.rgb = vec3( accessibility(gl_TexCoord[0].st)*accessibility(gl_TexCoord[0].st) );
+  if ( error==1 )
+  {
+    gl_FragColor.rgb = vec3(1.,0.,0.);
+  }
+  else
+  {
+    float access = accessibility(gl_TexCoord[0].st);
+    gl_FragColor.rgb = vec3( pow(access,power) );
+  }
 }

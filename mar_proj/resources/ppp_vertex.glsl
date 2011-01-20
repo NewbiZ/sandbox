@@ -3,6 +3,7 @@ varying vec4 ambient;
 varying vec3 normal;
 varying vec3 lightDir;
 varying vec3 halfVector;
+varying float depth;
 
 void main()
 {

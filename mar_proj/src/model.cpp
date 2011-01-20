@@ -1,334 +1,180 @@
 #include "mar_proj/model.h"
 
-#include <GL/gl.h>
-#include <cassert>
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include "mar_proj/vector.h"
 #include "mar_proj/utils.vector.h"
 
 namespace mar
 {
   Model::Model()
+    : totalFaces_(0), totalVertices_(0)
   {
   }
   
   Model::Model( const std::string& filename )
+    : totalFaces_(0), totalVertices_(0)
   {
     load( filename );
   }
   
   Model::~Model()
   {
+    glDeleteBuffers( 1, &vboVertices_ );
+    glDeleteBuffers( 1, &vboFaces_    );
   }
   
   void Model::render() const
   {
-    /*
+    glBindBuffer( GL_ARRAY_BUFFER, vboVertices_ );
+    glVertexPointer( 3, GL_FLOAT, 6*sizeof(float), (((float*)0)+0) );
+    glNormalPointer(    GL_FLOAT, 6*sizeof(float), (((float*)0)+3) );
+    
+    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, vboFaces_ );
+    
     glEnableClientState( GL_VERTEX_ARRAY );
     glEnableClientState( GL_NORMAL_ARRAY );
-    
-    glVertexPointer( 3, GL_FLOAT, 0, triangles_ );
-    glNormalPointer( GL_FLOAT, 0, normals_  );
-    
-    glDrawArrays( GL_TRIANGLES, 0, totalTriangles_ );
-    
+
+    glDrawElements( GL_TRIANGLES, totalFaces_*3, GL_UNSIGNED_INT, 0 );
+
+    glDisableClientState( GL_VERTEX_ARRAY );
     glDisableClientState( GL_NORMAL_ARRAY );
-    glDisableClientState( GL_VERTEX_ARRAY );*/
-    glEnableClientState(GL_VERTEX_ARRAY);	
-    glEnableClientState(GL_NORMAL_ARRAY);
-    glVertexPointer(3,GL_FLOAT,	0,Faces_Triangles);	
-    glNormalPointer(GL_FLOAT, 0, Normals);
-    glDrawArrays(GL_TRIANGLES, 0, TotalConnectedTriangles);	
-    glDisableClientState(GL_VERTEX_ARRAY);    
-    glDisableClientState(GL_NORMAL_ARRAY);
   }
-  
-  void calculateNormal( float *coord1, float *coord2, float *coord3, float* norm )
+
+  void split( const std::string& str, char delim, std::vector<std::string>& tokens )
   {
-     /* calculate Vector1 and Vector2 */
-     float va[3], vb[3], vr[3], val;
-     va[0] = coord1[0] - coord2[0];
-     va[1] = coord1[1] - coord2[1];
-     va[2] = coord1[2] - coord2[2];
-
-     vb[0] = coord1[0] - coord3[0];
-     vb[1] = coord1[1] - coord3[1];
-     vb[2] = coord1[2] - coord3[2];
-
-     /* cross product */
-     vr[0] = va[1] * vb[2] - vb[1] * va[2];
-     vr[1] = vb[0] * va[2] - va[0] * vb[2];
-     vr[2] = va[0] * vb[1] - vb[0] * va[1];
-
-     /* normalization factor */
-     val = sqrt( vr[0]*vr[0] + vr[1]*vr[1] + vr[2]*vr[2] );
-
-  	norm[0] = vr[0]/val;
-  	norm[1] = vr[1]/val;
-  	norm[2] = vr[2]/val;
-  }
-  bool Model::load( const std::string& filename )
-  {/*
-    totalTriangles_ = 0; 
-    totalQuads_     = 0;
-    totalPoints_    = 0;
-
-    FILE* file = fopen( filename.c_str(), "r" );
-    
-    assert( file );
-
-    fseek( file, 0, SEEK_END );
-    long fileSize = ftell(file);
-    fseek(file,0,SEEK_SET);
-    
-    assert( fileSize );
-
-    vertexBuffer_ = (float*)malloc( fileSize );
-    triangles_    = (float*)malloc( fileSize*sizeof(float) );
-    normals_      = (float*)malloc( fileSize*sizeof(float) );
-
-    int i              = 0;
-    int temp           = 0;
-    int quads_index    = 0;
-    int triangle_index = 0;
-    int normal_index   = 0;
-    char buffer[1000];
-
-    fgets( buffer, 300, file);
-
-    while ( strncmp( "element vertex", buffer,strlen("element vertex")) != 0 )
-      fgets(buffer,300,file);
-    strcpy( buffer, buffer+strlen("element vertex") );
-    sscanf( buffer, "%i", &totalPoints_ );
-
-    fseek(file,0,SEEK_SET);
-    while ( strncmp( "element face", buffer,strlen("element face")) != 0 )
-    	fgets(buffer,300,file);
-    strcpy( buffer, buffer+strlen("element face") );
-    sscanf( buffer,"%i", &totalFaces_ );
-
-    while ( strncmp( "end_header", buffer,strlen("end_header")) != 0 )
-      fgets(buffer,300,file);
-  
-    i = 0;
-    for ( int iterator=0; iterator<totalPoints_; ++iterator )
+    std::stringstream iss(str);
+    std::string item;
+    while ( std::getline(iss, item, delim) )
     {
-      fgets( buffer, 300, file );
-      sscanf( buffer,"%f %f %f", &vertexBuffer_[i], &vertexBuffer_[i+1], &vertexBuffer_[i+2] );
-      i += 3;
+      if ( !item.empty() )
+        tokens.push_back(item);
     }
-
-    i = 0;
-    for ( int iterator=0; iterator<totalFaces_; ++iterator )
+  }
+  
+  bool Model::load( const std::string& filename )
+  {
+    float*        vertices = 0;
+    unsigned int* faces    = 0;
+    
+    std::ifstream file( filename.c_str(), std::ios::in );
+    
+    if ( !file )
     {
-      fgets( buffer, 300, file );
+      std::cerr << "Error: Cannot open model file " << filename << "." << std::endl;
+      return false;
+    }
+    
+    std::string line;
+    
+    // Check for the PLY magic number
+    std::getline( file, line );
+    if ( line.compare("ply")!=0 )
+    {
+      std::cerr << "Error: Model file " << filename << " does not seem to be of PLY format." << std::endl;
+      return false;
+    }
+    
+    // Check for ASCII PLY format
+    std::getline( file, line );
+    if ( line.find("ascii")==std::string::npos )
+    {
+      std::cerr << "Error: Model file " << filename << " is in an unsupported PLY format (not ASCII)." << std::endl;
+      return false;
+    }
+    
+    // Parse file header
+    std::getline( file, line );
+    while ( line.compare("end_header")!=0 )
+    {
+      std::vector<std::string> tokens;
+      split( line, ' ', tokens );
       
-      if ( buffer[0]!='3' )
+      if ( tokens[0].compare("element")==0 ) // --- Elements
       {
-        i += 3;
-        continue;
+        if ( tokens[1].compare("vertex")==0 ) // - vertices
+        {
+          totalVertices_ = strtoul(tokens[2].c_str(),0,0);
+        }
+        else if ( tokens[1].compare("face")==0 ) // - faces
+        {
+          totalFaces_ = strtoul(tokens[2].c_str(),0,0);
+        }
+        else
+        {
+          // should not fall here
+        }
+      }
+      else if ( tokens[0].compare("property")==0 ) // --- Properties
+      {
+        // we do not handle properties. We assume that vertices are composed
+        // of 3 floats (x,y,z) and faces 3 indices.
+      }
+      else // --- Comments & unknowns
+      {
+        // nothing to do, skip them
       }
       
-      int vertex1 = 0;
-      int vertex2 = 0;
-      int vertex3 = 0;
-      
-      buffer[0] = ' ';
-      
-      sscanf( buffer,"%i%i%i", &vertex1, &vertex2, &vertex3 );
-      
-      triangles_[triangle_index+0] = vertexBuffer_[3*vertex1+0];
-      triangles_[triangle_index+1] = vertexBuffer_[3*vertex1+1];
-      triangles_[triangle_index+2] = vertexBuffer_[3*vertex1+2];
-      
-      triangles_[triangle_index+3] = vertexBuffer_[3*vertex2+0];
-      triangles_[triangle_index+4] = vertexBuffer_[3*vertex2+1];
-      triangles_[triangle_index+5] = vertexBuffer_[3*vertex2+2];
-      
-      triangles_[triangle_index+6] = vertexBuffer_[3*vertex3+0];
-      triangles_[triangle_index+7] = vertexBuffer_[3*vertex3+1];
-      triangles_[triangle_index+8] = vertexBuffer_[3*vertex3+2];
-      
-      float coord1[3] = { triangles_[triangle_index+0],
-                          triangles_[triangle_index+1],
-                          triangles_[triangle_index+2] };
-      float coord2[3] = { triangles_[triangle_index+3],
-                          triangles_[triangle_index+4],
-                          triangles_[triangle_index+5] };
-      float coord3[3] = { triangles_[triangle_index+6],
-                          triangles_[triangle_index+7],
-                          triangles_[triangle_index+8] };
-      
-      Vec3 v1 = Vec3(coord1) - Vec3(coord2);
-      Vec3 v2 = Vec3(coord1) - Vec3(coord3);
-      Vec3 normal = cross( v1, v2 );
-      normalize(normal);
-      
-      normals_[normal_index+0] = normal[0];
-      normals_[normal_index+1] = normal[1];
-      normals_[normal_index+2] = normal[2];
-      normals_[normal_index+3] = normal[0];
-      normals_[normal_index+4] = normal[1];
-      normals_[normal_index+5] = normal[2];
-      normals_[normal_index+6] = normal[0];
-      normals_[normal_index+7] = normal[1];
-      normals_[normal_index+8] = normal[2];
-      
-      normal_index += 9;
-      
-      triangle_index += 9;
-      totalTriangles_ += 3;
-      
-      i += 3;
+      std::getline( file, line );
     }
     
-    fclose(file);
-
-    return true;*/
-       this->TotalConnectedTriangles = 0; 
-      	this->TotalConnectedQuads = 0;
-      	this->TotalConnectedPoints = 0;
-
-          char* pch = strstr(filename.c_str(),".ply");
-
-          if (pch != NULL)
-          {
-      	   FILE* file = fopen(filename.c_str(),"r");
-
-      		fseek(file,0,SEEK_END);
-      		long fileSize = ftell(file);
-
-      		try
-      		{
-      		Vertex_Buffer = (float*) malloc (ftell(file));
-      		}
-      		catch (char* )
-      		{
-      			return -1;
-      		}
-      		if (Vertex_Buffer == NULL) return -1;
-      		fseek(file,0,SEEK_SET); 
-
-      	   Faces_Triangles = (float*) malloc(fileSize*sizeof(float));
-      	   Normals  = (float*) malloc(fileSize*sizeof(float));
-
-             if (file)
-             {
-      			int i = 0;   
-      			int temp = 0;
-      			int quads_index = 0;
-                  int triangle_index = 0;
-      			int normal_index = 0;
-      			char buffer[1000];
-
-
-      			fgets(buffer,300,file);			// ply
-
-
-      			// READ HEADER
-      			// -----------------
-
-      			// Find number of vertexes
-      			while (  strncmp( "element vertex", buffer,strlen("element vertex")) != 0  )
-      			{
-      				fgets(buffer,300,file);			// format
-      			}
-      			strcpy(buffer, buffer+strlen("element vertex"));
-      			sscanf(buffer,"%i", &this->TotalConnectedPoints);
-
-
-      			// Find number of vertexes
-      			fseek(file,0,SEEK_SET);
-      			while (  strncmp( "element face", buffer,strlen("element face")) != 0  )
-      			{
-      				fgets(buffer,300,file);			// format
-      			}
-      			strcpy(buffer, buffer+strlen("element face"));
-      			sscanf(buffer,"%i", &this->TotalFaces);
-
-
-      			// go to end_header
-      			while (  strncmp( "end_header", buffer,strlen("end_header")) != 0  )
-      			{
-      				fgets(buffer,300,file);			// format
-      			}
-
-      			//----------------------
-
-
-      			// read verteces
-      			i =0;
-      			for (int iterator = 0; iterator < this->TotalConnectedPoints; iterator++)
-      			{
-      				fgets(buffer,300,file);
-
-      				sscanf(buffer,"%f %f %f", &Vertex_Buffer[i], &Vertex_Buffer[i+1], &Vertex_Buffer[i+2]);
-      				i += 3;
-      			}
-
-      			// read faces
-      			i =0;
-      			for (int iterator = 0; iterator < this->TotalFaces; iterator++)
-      			{
-      				fgets(buffer,300,file);
-
-      					if (buffer[0] == '3')
-      					{
-
-      						int vertex1 = 0, vertex2 = 0, vertex3 = 0;
-
-      						buffer[0] = ' ';
-      						sscanf(buffer,"%i%i%i", &vertex1,&vertex2,&vertex3 );
-
-
-      						Faces_Triangles[triangle_index+0] = Vertex_Buffer[3*vertex1+0];
-      						Faces_Triangles[triangle_index+1] = Vertex_Buffer[3*vertex1+1];
-      						Faces_Triangles[triangle_index+2] = Vertex_Buffer[3*vertex1+2];
-      						
-      						Faces_Triangles[triangle_index+3] = Vertex_Buffer[3*vertex2+0];
-      						Faces_Triangles[triangle_index+4] = Vertex_Buffer[3*vertex2+1];
-      						Faces_Triangles[triangle_index+5] = Vertex_Buffer[3*vertex2+2];
-      						
-      						Faces_Triangles[triangle_index+6] = Vertex_Buffer[3*vertex3+0];
-      						Faces_Triangles[triangle_index+7] = Vertex_Buffer[3*vertex3+1];
-      						Faces_Triangles[triangle_index+8] = Vertex_Buffer[3*vertex3+2];
-
-      						float coord1[3] = { Faces_Triangles[triangle_index+0], Faces_Triangles[triangle_index+1], Faces_Triangles[triangle_index+2] };
-      						float coord2[3] = { Faces_Triangles[triangle_index+3], Faces_Triangles[triangle_index+4], Faces_Triangles[triangle_index+5] };
-      						float coord3[3] = { Faces_Triangles[triangle_index+6], Faces_Triangles[triangle_index+7], Faces_Triangles[triangle_index+8] };
-      						
-                  float norm[3];
-      						calculateNormal( coord1, coord2, coord3, norm );
-
-      						Normals[normal_index+0] = norm[0];
-      						Normals[normal_index+1] = norm[1];
-      						Normals[normal_index+2] = norm[2];
-      						
-      						Normals[normal_index+3] = norm[0];
-      						Normals[normal_index+4] = norm[1];
-      						Normals[normal_index+5] = norm[2];
-      						
-      						Normals[normal_index+6] = norm[0];
-      						Normals[normal_index+7] = norm[1];
-      						Normals[normal_index+8] = norm[2];
-
-      						normal_index += 9;
-
-      						triangle_index += 9;
-      						TotalConnectedTriangles += 3;
-      					}
-
-
-      					i += 3;
-      			}
-
-
-      			fclose(file);
-      		}
-
-            else { printf("File can't be opened\n"); }
-          } else {
-            printf("File does not have a .PLY extension. ");    
-          }   
-      	return 0;
+    vertices = new float[6*totalVertices_];
+    faces    = new unsigned int[3*totalFaces_];
+    
+    // Parse vertices
+    for ( int i=0; i<totalVertices_; ++i )
+    {
+      std::getline( file, line );
+      std::vector<std::string> tokens;
+      split( line, ' ', tokens );
+      
+      vertices[6*i+0] = strtod( tokens[0].c_str(), 0 );
+      vertices[6*i+1] = strtod( tokens[1].c_str(), 0 );
+      vertices[6*i+2] = strtod( tokens[2].c_str(), 0 );
+    }
+    
+    // Parse faces
+    for ( int i=0; i<totalFaces_; ++i )
+    {
+      std::getline( file, line );
+      std::vector<std::string> tokens;
+      split( line, ' ', tokens );
+      
+      faces[3*i+0] = strtoul( tokens[1].c_str(), 0, 0 );
+      faces[3*i+1] = strtoul( tokens[2].c_str(), 0, 0 );
+      faces[3*i+2] = strtoul( tokens[3].c_str(), 0, 0 );
+      
+      Vec3 a( vertices[faces[3*i+0]*6+0], vertices[faces[3*i+0]*6+1], vertices[faces[3*i+0]*6+2] );
+      Vec3 b( vertices[faces[3*i+1]*6+0], vertices[faces[3*i+1]*6+1], vertices[faces[3*i+1]*6+2] );
+      Vec3 c( vertices[faces[3*i+2]*6+0], vertices[faces[3*i+2]*6+1], vertices[faces[3*i+2]*6+2] );
+      Vec3 normal( cross(b-a, c-a) );
+      
+      vertices[faces[3*i+0]*6+3] = normal.x;
+      vertices[faces[3*i+0]*6+4] = normal.y;
+      vertices[faces[3*i+0]*6+5] = normal.z;
+      
+      vertices[faces[3*i+1]*6+3] = normal.x;
+      vertices[faces[3*i+1]*6+4] = normal.y;
+      vertices[faces[3*i+1]*6+5] = normal.z;
+      
+      vertices[faces[3*i+2]*6+3] = normal.x;
+      vertices[faces[3*i+2]*6+4] = normal.y;
+      vertices[faces[3*i+2]*6+5] = normal.z;
+    }
+    
+    glGenBuffers( 1, &vboVertices_ );
+    glGenBuffers( 1, &vboFaces_  );
+    
+    glBindBuffer( GL_ARRAY_BUFFER, vboVertices_ );
+    glBufferData( GL_ARRAY_BUFFER, sizeof(float)*6*totalVertices_, vertices, GL_STATIC_DRAW );
+    
+    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, vboFaces_ );
+    glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*3*totalFaces_, faces, GL_STATIC_DRAW );
+    
+    delete [] vertices;
+    delete [] faces;
   }
 }

@@ -1,11 +1,11 @@
 #ifndef MAR_MODEL_H
 #define MAR_MODEL_H
 
+#include <GL/glew.h>
 #include <string>
 
 namespace mar
 {
-
   class Model
   {
   public:
@@ -20,23 +20,11 @@ namespace mar
     void render() const;
     
   private:
-    //float* triangles_;
-    //float* quads_;
-    //float* vertexBuffer_;
-    //float* normals_;
-    //
-    //int totalTriangles_;
-    //int totalQuads_;
-    //int totalPoints_;
-    //int totalFaces_;
-      float* Faces_Triangles;
-      float* Faces_Quads;
-      float* Vertex_Buffer;
-      float* Normals;
-      int TotalConnectedTriangles;	
-      int TotalConnectedQuads;	
-      int TotalConnectedPoints;
-      int TotalFaces;
+    unsigned int totalVertices_;
+    unsigned int totalFaces_;
+    
+    GLuint vboVertices_;
+    GLuint vboFaces_;
   };
 
 } // namespace mar
