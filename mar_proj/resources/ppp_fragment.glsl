@@ -27,4 +27,7 @@ void main()
   }
 
   gl_FragColor = color;
+  
+  gl_FragColor = gl_FrontMaterial.specular * gl_LightSource[0].specular * pow(NdotHV, gl_FrontMaterial.shininess);
+  gl_FragColor *= 2.;
 }
