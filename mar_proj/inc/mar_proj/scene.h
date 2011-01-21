@@ -37,7 +37,7 @@ namespace mar
     
   private:
     Model       model_;
-    float       rotation_;
+    mutable float       rotation_;
     float       distance_;
     Shader      shaderPPP_;
     Shader      shaderSSAO_;

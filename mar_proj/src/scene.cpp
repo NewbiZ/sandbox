@@ -14,7 +14,8 @@ namespace mar
        pass2Nbrays_   ( nbrays    ),
        pass2Power_    ( power     ),
        pass3Blend_    ( blend     ),
-       pass3Blur_     ( blur      )
+       pass3Blur_     ( blur      ),
+       framebuffer1_  ( 2         ) // 2 color buffers
   {
   }
   
@@ -212,12 +213,17 @@ namespace mar
     glEnable( GL_TEXTURE_2D );
     glBindTexture( GL_TEXTURE_2D, framebuffer2_.color_buffer() );
     
+    glActiveTexture(GL_TEXTURE2);
+    glEnable( GL_TEXTURE_2D );
+    glBindTexture( GL_TEXTURE_2D, framebuffer1_.color_buffer(1) );
+    
     shaderBlend_.enable();
     
     shaderBlend_.setUniform1i( "apply_ambient",  pass3Blend_ );
     shaderBlend_.setUniform1i( "apply_blur",     pass3Blur_  );
     shaderBlend_.setUniform1i( "ppp_map",        0           );
     shaderBlend_.setUniform1i( "ssao_map",       1           );
+    shaderBlend_.setUniform1i( "bloom_map",      2           );
     
     glBegin( GL_QUADS );
       glTexCoord2f(0,0); glVertex3f(      0,       0, 0 );
@@ -246,7 +252,7 @@ namespace mar
     
     glEnable( GL_TEXTURE_2D );
     
-    glBindTexture( GL_TEXTURE_2D, framebuffer1_.depth_buffer() );
+    glBindTexture( GL_TEXTURE_2D, framebuffer1_.color_buffer(0) );
     glBegin( GL_QUADS );
       glTexCoord2f(0,0); glVertex3f(        0, height_/2, 0 );
       glTexCoord2f(1,0); glVertex3f( width_/2, height_/2, 0 );
@@ -254,7 +260,7 @@ namespace mar
       glTexCoord2f(0,1); glVertex3f(        0,   height_, 0 );
     glEnd();
     
-    glBindTexture( GL_TEXTURE_2D, framebuffer1_.color_buffer() );
+    glBindTexture( GL_TEXTURE_2D, framebuffer1_.color_buffer(1) );
     glBegin( GL_QUADS );
       glTexCoord2f(0,0); glVertex3f( width_/2, height_/2, 0 );
       glTexCoord2f(1,0); glVertex3f(   width_, height_/2, 0 );
@@ -288,5 +294,7 @@ namespace mar
     
     //==========================================================================
     glColor4f(1.0,1.0,1.0,1.0);
+    
+    rotation_ += 2;
   }
 }

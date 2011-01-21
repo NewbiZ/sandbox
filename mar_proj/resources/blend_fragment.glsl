@@ -1,11 +1,12 @@
 uniform sampler2D ppp_map;
 uniform sampler2D ssao_map;
+uniform sampler2D bloom_map;
 uniform int apply_ambient;
 uniform int apply_blur;
 
-float blur( vec2 uv )
+vec4 blur( vec2 uv )
 {
-  /* Gaussian blur */
+  /*
   float kernel[5*5];
   
   kernel[0]  =  1./273.;
@@ -37,32 +38,25 @@ float blur( vec2 uv )
   kernel[22] =  7./273.;
   kernel[23] =  4./273.;
   kernel[24] =  1./273.;
+  */
+  vec4 t;
   
-  float x = -2.0;
-  float y = -2.0;
-  float t =  0.0;
+  for ( float x=-6.; x<6.; ++x )
+    for ( float y=-6.; y<6.; ++y )
+      t += texture2D(bloom_map, gl_TexCoord[0].st + (x*dFdx(gl_TexCoord[0].st)+y*dFdy(gl_TexCoord[0].st)) );
   
-  for ( x=-2.0; x<=2.0; ++x )
-    for ( y=-2.0; y<=2.0; ++y )
-      t += texture2D(ssao_map, gl_TexCoord[0].st + (x*dFdx(gl_TexCoord[0].st)+y*dFdy(gl_TexCoord[0].st)) ).r;
-  
-  return t/25.;
+  return t/(6.*6.)/2.;
 }
 
 void main()
 {
   vec4 occlusionValue;
-  vec4 lightingValue;
+  vec4 phongValue;
+  vec4 specularValue;
   
-  if ( apply_blur==1 )
-    occlusionValue = vec4(blur(gl_TexCoord[0].st));
-  else
-    occlusionValue = vec4(texture2D(ssao_map, gl_TexCoord[0].st));
+  occlusionValue = vec4(texture2D(ssao_map, gl_TexCoord[0].st));
+  phongValue     = texture2D(ppp_map,gl_TexCoord[0].st);
+  specularValue  = blur(gl_TexCoord[0].st);
   
-  if ( apply_ambient==1 )
-    lightingValue = texture2D(ppp_map,gl_TexCoord[0].st);
-  else
-    lightingValue = vec4(1.);
-  
-  gl_FragColor = occlusionValue * lightingValue;
+  gl_FragColor = occlusionValue * (phongValue+specularValue);
 }

@@ -9,7 +9,7 @@ namespace mar
   class FrameBuffer
   {
   public:
-    explicit FrameBuffer();
+    explicit FrameBuffer( size_t colorbuffers=1 );
     ~FrameBuffer();
   
   public:
@@ -21,12 +21,15 @@ namespace mar
     
   public:
     GLuint depth_buffer() const;
-    GLuint color_buffer() const;
+    GLuint color_buffer(size_t index=0) const;
     
   //private:
-    GLuint fbo_;
-    GLuint depthBuffer_;
-    GLuint colorBuffer_;
+    GLuint  fbo_;
+    GLuint  depthBuffer_;
+    GLuint* colorBuffer_;
+    size_t  nbColorBuffers_;
+    
+    static GLenum colorbuffers_[GL_MAX_COLOR_ATTACHMENTS_EXT];
   };
 } // namespace mar
 
