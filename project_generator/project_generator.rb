@@ -105,8 +105,8 @@ FILE( GLOB_RECURSE PROJ_HEADERS inc/#{options[:project]}/*.h ) # Scan all public
 SET( PROJ_INCLUDES ${PROJ_INCLUDES} ${PROJ_PATH}/inc )
 
 # Group files in virtual folders under Visual Studio
-SOURCE_GROUP( "Headers" FILES ${PROJ_SOURCES} )
-SOURCE_GROUP( "Sources" FILES ${PROJ_HEADERS} )
+SOURCE_GROUP( "Headers" FILES ${PROJ_HEADERS} )
+SOURCE_GROUP( "Sources" FILES ${PROJ_SOURCES} )
 
 ############################ External libraries ###############################
 # Add current source directory as module path for Find*.cmake
