@@ -362,17 +362,17 @@ namespace mar
     }
     else if ( line.find("vt ")==0 ) // A texture coordinate
     {
-       std::vector<std::string> tokens;
-       split(line, ' ', tokens);
+      std::vector<std::string> tokens;
+      split(line, ' ', tokens);
 
-       if (tokens.size() != 3 && tokens.size() != 4) return;
+      if ( tokens.size() != 3 && tokens.size() != 4 ) return;
 
-       OBJTexture texture;
-       texture.coords[0] = std::strtod(tokens.at(1).c_str(), 0);
-       texture.coords[1] = std::strtod(tokens.at(2).c_str(), 0);
-       if (tokens.size() == 4)
-           texture.coords[2] = std::strtod(tokens.at(3).c_str(), 0);
-       object_.textures.push_back(texture);
+      OBJTexture texture;
+      texture.coords[0] = std::strtod(tokens.at(1).c_str(), 0);
+      texture.coords[1] = std::strtod(tokens.at(2).c_str(), 0);
+      if ( tokens.size() == 4 )
+          texture.coords[2] = std::strtod(tokens.at(3).c_str(), 0);
+      object_.textures.push_back(texture);
     }
     else // Whatever
     {
